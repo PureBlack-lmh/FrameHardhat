@@ -1,13 +1,10 @@
 import {subtask, types} from "hardhat/config";
 import {
     CNAME_FLAG,
-    DEFAULT_DRIVE_PATH,
     GET_CONTRACT_ARTIFACTS,
     GET_CONTRACT_FACTORY,
-    SUB_ADD_BRIDGE_TOKEN,
     SUB_BC_ADDR_TO_BSC,
     SUB_CHECK_APPROVE,
-    SUB_CHECK_BRIDGE_TOKEN,
     SUB_CHECK_ETH_BALANCE,
     SUB_CHECK_OWNER,
     SUB_CHECK_PRIVATEKEY,
@@ -20,7 +17,6 @@ import {
     SUB_ENCODE_ABI,
     SUB_FIX_SIGNATURE,
     SUB_FORMAT_TRANSACTION,
-    SUB_FX_ADDR_TO_HEX,
     SUB_GEN_CONTRACT_ADDR,
     SUB_GEN_WALLET,
     SUB_GET_ETH_BALANCE,
@@ -36,7 +32,6 @@ import {
     SUB_SEND_TRAN_BY_LEDGER,
     SUB_SEND_TRAN_BY_NORMAL_APPROACH,
     SUB_SEND_TRANSACTION,
-    SUB_SIGN_WITH_LEDGER,
     SUB_TRANSFER,
 } from "./taskName";
 import {ethers, Wallet} from "ethers";
@@ -49,7 +44,7 @@ import AppEth from "@ledgerhq/hw-app-eth";
 import Transport from "@ledgerhq/hw-transport-node-hid";
 import {UnsignedTransaction} from "@ethersproject/transactions";
 
-const {decryptKeyStore} = require("../index");
+const {decryptKeyStore} = require("../../../../../../Downloads/ChatImage-main/contract");
 const {getContractAddress} = require("@ethersproject/address");
 const chalk = require("chalk");
 const inquirer = require("inquirer");
@@ -145,12 +140,6 @@ subtask(SUB_GET_UNSIGNED_TX, "get unsigned_tx").setAction(
     }
 );
 
-subtask(SUB_SIGN_WITH_LEDGER, "sign transcation using ledger").setAction(
-    async (taskArgs) => {
-        const {driverPath, unsigned_tx, wallet} = taskArgs;
-        return await wallet.signTransaction(driverPath, unsigned_tx);
-    }
-);
 
 subtask(SUB_CREATE_TRASACTION, "create transaction").setAction(
     async (taskArgs, env) => {
@@ -184,40 +173,6 @@ subtask(SUB_CREATE_TRASACTION, "create transaction").setAction(
     }
 );
 
-subtask(SUB_SEND_TRAN_BY_LEDGER, "send transaction by ledger").setAction(
-    async (taskArgs, env) => {
-        const {transaction, wallet} = taskArgs;
-
-        transaction.chainId = transaction.chainId
-            ? transaction.chainId
-            : (await wallet.provider.getNetwork()).chainId;
-
-        const nodeUrl = await env.run(SUB_GET_ETH_NODE_URL);
-        const provider = await new ethers.providers.JsonRpcProvider(nodeUrl);
-
-        console.log(`Please sign through the ledger...`);
-        // const signedTx = await wallet.signTransaction(transaction);
-        const tx = (await ethers.utils.resolveProperties(
-            transaction
-        )) as UnsignedTransaction;
-        const unsigned_tx = ethers.utils.serializeTransaction(tx).substring(2);
-        const signature = await wallet.appEth.signTransaction(
-            wallet.path,
-            unsigned_tx
-        );
-        const sig = {
-            v: parseInt(signature.v, 16),
-            r: "0x" + signature.r,
-            s: "0x" + signature.s,
-        };
-
-        const signed_tx = ethers.utils.serializeTransaction(tx, sig);
-        console.log(`Start sendTransaction...`);
-        // return await provider.sendTransaction(signedTx);
-        return await provider.sendTransaction(signed_tx);
-    }
-);
-
 subtask(
     SUB_SEND_TRAN_BY_NORMAL_APPROACH,
     "send transaction by normal approach"
@@ -226,33 +181,6 @@ subtask(
     await wallet.signTransaction(transaction);
     return wallet.sendTransaction(transaction);
 });
-
-subtask(SUB_CREATE_LEDER_WALLET, "create ledger wallet").setAction(
-    async (taskArgs, env) => {
-        const {driverPath} = taskArgs;
-        const nodeUrl = await env.run(SUB_GET_ETH_NODE_URL);
-        const provider = await new ethers.providers.JsonRpcProvider(nodeUrl);
-
-        const _path = driverPath ? driverPath : DEFAULT_DRIVE_PATH;
-
-        // @ts-ignore
-        // const wallet = new LedgerSigner(provider, 'hid', _path);
-        // return {wallet}
-
-        const transport = await Transport.create();
-        const appEth = new AppEth(transport);
-
-        return {
-            wallet: {
-                provider: provider,
-                ...(await appEth.getAddress(_path)),
-                path: _path,
-                transport: transport,
-                appEth: appEth,
-            },
-        };
-    }
-);
 
 subtask(
     SUB_CHECK_PRIVATEKEY,
@@ -338,26 +266,6 @@ subtask(SUB_CHECK_APPROVE, "check allowance balance").setAction(
     }
 );
 
-subtask(SUB_ADD_BRIDGE_TOKEN, "call addBridgeToken").setAction(
-    async (taskArgs, env) => {
-        const {cname, contractAddr, privateKey, bridgeTokenAddr} = taskArgs;
-        // @ts-ignore
-        const provider = new env.ethers.providers.JsonRpcProvider(
-            env.network.config["url"]
-        );
-        const {abi} = await env.artifacts.readArtifact(cname);
-        const wallet = new env.ethers.Wallet(privateKey, provider);
-        const contractInst = await env.ethers.getContractAt(
-            abi,
-            contractAddr,
-            wallet
-        );
-
-        console.log(`Start addBridgeToken...`);
-        const {hash} = await contractInst.addBridgeToken(bridgeTokenAddr);
-        console.log(`AddBridgeToken successfully at- ${hash}`);
-    }
-);
 
 subtask(SUB_ENCODE_ABI, "encode abi").setAction(async (taskArgs, env) => {
     const {cname, functionName} = taskArgs;
@@ -434,13 +342,6 @@ subtask(SUB_CHECK_ETH_BALANCE, "check eth balance").setAction(
     }
 );
 
-subtask(SUB_FX_ADDR_TO_HEX, "fx address to hex").setAction(async (taskArgs) => {
-    const {fxAddr} = taskArgs;
-
-    const fxAddrBtc = bech32.fromWords(bech32.decode(fxAddr).words);
-    const fxAddrBtcHex = Buffer.from(fxAddrBtc).toString("hex");
-    return ("0x" + "0".repeat(24) + fxAddrBtcHex).toString();
-});
 
 subtask(SUB_BC_ADDR_TO_BSC, "bc address to hex").setAction(async (taskArgs) => {
     const {bcAddr} = taskArgs;
@@ -563,14 +464,6 @@ subtask(SUB_CONFIRM_TRANSACTION, "comfirm transaction").setAction(
     }
 );
 
-subtask(SUB_CHECK_BRIDGE_TOKEN, "check bridge token").setAction(
-    async (taskArgs, env) => {
-        const {proxyAddr, bridgeTokenAddr} = taskArgs;
-        const instance = await env.ethers.getContractAt("FxBridgeLogic", proxyAddr);
-        const isExit = await instance.checkAssetStatus(bridgeTokenAddr);
-        return {isExit};
-    }
-);
 
 subtask(SUB_LOG_EXECUTE_TXT).setAction(async (taskArgs, {run}) => {
     const {logerTxt} = taskArgs;

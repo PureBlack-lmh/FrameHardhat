@@ -21,7 +21,6 @@ task(COIN98_DEPLOY, 'deploy coin98 contract')
     .addParam(DEPLOY_PRIVATE_KEY, '[optional] depoloy private key', undefined, types.string, true)
     .addParam(KEY_STORE_FILE_PATH, 'key Store File Path', undefined, types.string, true)
     .addParam(DRIVER_PATH, 'driver path ', undefined, types.string, true)
-    .addParam(IS_LEDGER, 'choose ledger to sendtransaction', undefined, types.boolean, true)
     .setAction(async (taskArgs, env) => {
         const {wallet} = await env.run(SUB_CHECK_PRIVATEKEY, taskArgs)
         const cname = CONTRACT_NAME.Coin98;
